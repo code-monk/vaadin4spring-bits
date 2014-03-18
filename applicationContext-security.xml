@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+             xmlns:beans="http://www.springframework.org/schema/beans"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+             xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+        http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-3.2.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+	<!-- Enable the @Secured annotation -->
+    <global-method-security secured-annotations="enabled" />
+
+	<!-- Configure these beans as you require -->
+    <beans:bean id="passwordEncoder" />
+    <beans:bean id="saltSource" />
+
+    <authentication-manager alias="authenticationManager">
+    	<!-- Add the remember me provider to allow remember me'd authorised users to log back in automatically-->
+        <authentication-provider ref="rememberMeAuthenticationProvider"/>
+        
+        <!-- Configure these as you require for normal login -->
+        <authentication-provider user-service-ref="userService">
+            <password-encoder ref="passwordEncoder">
+                <salt-source ref="saltSource"/>
+            </password-encoder>
+        </authentication-provider>
+    </authentication-manager>
+
+	<!-- Required minimal Spring security chain that prevents the Authentication object being lost
+	after the initial request (securityContextFilter) and for F5/browser page refresh (rememberMeFilter) --> 
+    <beans:bean id="springSecurityFilterChain" class="org.springframework.security.web.FilterChainProxy">
+        <filter-chain-map path-type="ant">
+            <filter-chain pattern="/**" filters="securityContextFilter, rememberMeFilter"/>
+        </filter-chain-map>
+    </beans:bean>
+
+    <beans:bean id="rememberMeFilter" class="org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter">
+        <beans:property name="rememberMeServices" ref="rememberMeServices"/>
+        <beans:property name="authenticationManager" ref="authenticationManager" />
+    </beans:bean>
+
+	<!-- Configure remember me as you see fit - here we've disabled secure cookie to allow it to work without https in testing,
+	set the token validity to a day and enforced that a remember me token will always be created. Note in a production
+	environment you should ensure that secure cookie is enabled and this app is used over https  -->
+    <beans:bean id="rememberMeServices" class="org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices">
+        <beans:property name="userDetailsService" ref="userService"/>
+        <beans:property name="key" value="yourKeyHere"/>
+        <beans:property name="tokenValiditySeconds" value="3600" />
+        <beans:property name="useSecureCookie" value="false"/>
+        <beans:property name="alwaysRemember" value="true"/>
+    </beans:bean>
+
+    <beans:bean id="rememberMeAuthenticationProvider" class="org.springframework.security.authentication.RememberMeAuthenticationProvider">
+        <beans:property name="key" value="yourKeyHere"/>
+    </beans:bean>
+
+    <beans:bean id="securityContextRepository" class="org.springframework.security.web.context.HttpSessionSecurityContextRepository" />
+
+    <beans:bean id="securityContextFilter" class="org.springframework.security.web.context.SecurityContextPersistenceFilter" >
+        <beans:property name="securityContextRepository" ref="securityContextRepository"/>
+    </beans:bean>
+
+</beans:beans>
